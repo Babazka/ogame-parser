@@ -7,6 +7,7 @@ import lxml.html
 import lxml.etree
 
 import local_config
+import formulas
 
 
 def parse_html(string):
@@ -18,9 +19,15 @@ def parse_html(string):
 def parse_int(string):
     return int(string.strip().replace('.', ''))
 
+def rjust_int(v):
+    if isinstance(v, int):
+        return '%7d' % v
+    return str(v)
+
 
 RESOURCES = ['metal', 'crystal', 'deuterium']
-RESOURCES_RU = [u'металла', u'кристалла', u'дейтерия']
+
+RESOURCES_RU = [u'Рудник по добыче металла', u'Рудник по добыче кристалла', u'Синтезатор дейтерия']
 
 TRANSPORT_CAPACITY = {
     u'Большой транспорт': 25000,
@@ -89,7 +96,7 @@ class Planet(object):
             return
         html = parse_html(self.fetch_resources())
         resources = {}
-        for kind in RESOURCES:
+        for kind in RESOURCES + ['energy']:
             res = {
                 'level': 0,
                 'current': 0,
@@ -108,11 +115,13 @@ class Planet(object):
             if not tds:
                 continue
 
-            m = re.match(ur'.*\s(\S+)\s+\(Уровень\s+(\d+)\)$', tds[0])
+            m = re.match(ur'^(.*?)\s+\(Уровень\s+(\d+)\)$', tds[0])
             if m:
                 for ru_kind, kind in zip(RESOURCES_RU, RESOURCES):
                     if m.group(1) == ru_kind:
                         resources[kind]['level'] = parse_int(m.group(2))
+                if m.group(1) == u'Солнечная электростанция':
+                    resources['energy']['level'] = parse_int(m.group(2))
 
             if tds[0] == u'Вместимость хранилищ':
                 for kind, v in zip(RESOURCES, tds[1:]):
@@ -122,13 +131,37 @@ class Planet(object):
                     resources[kind]['per_hour'] = parse_int(v)
         self.resources = resources
 
+    def next_level(self, kind):
+        cur_lvl = self.resources[kind]['level']
+        m, c = formulas.build_price(kind, cur_lvl + 1)
+        e_cur = formulas.energy_consumption(kind, cur_lvl)
+        e_new = formulas.energy_consumption(kind, cur_lvl + 1)
+        e_delta = e_new - e_cur
+        dm = m - self.resources['metal']['current']
+        dc = c - self.resources['crystal']['current']
+        dm = max(0, dm)
+        dc = max(0, dc)
+        de = -e_delta - self.resources['energy']['current']
+        de = max(0, de)
+        return [
+            ('next lvl', '%s mt %s cr' % (rjust_int(m), rjust_int(c))),
+            ('need',     '%s mt %s cr %s dE' % (rjust_int(dm), rjust_int(dc), rjust_int(de))),
+        ]
+
     def dump_resources(self):
-        for kind in RESOURCES:
+        def print_line(kind, line):
+            print '\t' + kind.ljust(9) + '\t' + '\t'.join(map(rjust_int, line))
+
+        for kind in RESOURCES + ['energy']:
             line = []
-            for k, v in self.resources[kind]:
+            for k, v in self.resources[kind].iteritems():
                 line.append(k)
                 line.append(v)
-            print '\t', kind, '\t', '\t'.join(map(str, line))
+            for k, v in self.next_level(kind):
+                line.append(k)
+                line.append(v)
+
+            print_line(kind, line)
 
     def fetch_fleet(self):
         #return open('fleet.html').read().decode('utf-8')
@@ -253,7 +286,11 @@ class Parser():
 
         print 'TOTAL:'
         for kind in RESOURCES:
-            print '\t', kind, resource_totals[kind]
+            line = []
+            for k, v in resource_totals[kind].iteritems():
+                line.append(k)
+                line.append(v)
+            print '\t' + kind.ljust(9) + '\t' + '\t'.join(map(rjust_int, line))
         for kind in SHIPS:
             if ship_totals[kind] > 0:
                 print '\t', kind, ship_totals[kind]
