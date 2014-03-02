@@ -9,7 +9,7 @@ ogame-parser
 Requirements
 ------------
 
-ogame-parser написан Python (2.7). Список зависимостей перечислен в ``pip-requirements.txt``.
+ogame-parser написан на языке Python (2.7). Список зависимостей перечислен в ``pip-requirements.txt``.
 
 Использование
 -------------
@@ -53,9 +53,9 @@ Planet(name="Meeraharah", coords="1:194:5", planetid="33653920")
         Малый транспорт: 1      Большой транспорт: 4    Ёмкость: 105000
 
 TOTAL:
-        metal           current  234298 per_hour           7234
-        crystal         current  129850 per_hour           5565
-        deuterium       current   45371 per_hour           1002
+        metal           current  234298 per_hour           7234 per_day  173616
+        crystal         current  129850 per_hour           5565 per_day  133560
+        deuterium       current   45371 per_hour           1002 per_day   24048
         Лёгкий истребитель 5
         Тяжёлый истребитель 4
         Крейсер 1

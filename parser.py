@@ -290,6 +290,8 @@ class Parser():
             for k, v in resource_totals[kind].iteritems():
                 line.append(k)
                 line.append(v)
+            line.append('per_day')
+            line.append(rjust_int(resource_totals[kind]['per_hour'] * 24))
             print '\t' + kind.ljust(9) + '\t' + '\t'.join(map(rjust_int, line))
         for kind in SHIPS:
             if ship_totals[kind] > 0:
