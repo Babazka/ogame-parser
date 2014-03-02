@@ -124,7 +124,11 @@ class Planet(object):
 
     def dump_resources(self):
         for kind in RESOURCES:
-            print '\t', kind, self.resources[kind]
+            line = []
+            for k, v in self.resources[kind]:
+                line.append(k)
+                line.append(v)
+            print '\t', kind, '\t', '\t'.join(map(str, line))
 
     def fetch_fleet(self):
         #return open('fleet.html').read().decode('utf-8')
