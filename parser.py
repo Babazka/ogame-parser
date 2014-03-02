@@ -22,6 +22,50 @@ def parse_int(string):
 RESOURCES = ['metal', 'crystal', 'deuterium']
 RESOURCES_RU = [u'металла', u'кристалла', u'дейтерия']
 
+TRANSPORT_CAPACITY = {
+    u'Большой транспорт': 25000,
+    u'Малый транспорт': 5000,
+}
+
+MILITARY_SHIPS = [
+    u'Лёгкий истребитель',
+    u'Тяжёлый истребитель',
+    u'Крейсер',
+    u'Линкор',
+    u'Линейный крейсер',
+    u'Бомбардировщик',
+    u'Уничтожитель',
+    u'Звезда смерти',
+]
+TRANSPORT_SHIPS = [
+    u'Малый транспорт',
+    u'Большой транспорт',
+]
+UTILITY_SHIPS = [
+    u'Колонизатор',
+    u'Переработчик',
+    u'Шпионский зонд',
+]
+
+SHIPS = MILITARY_SHIPS + TRANSPORT_SHIPS + UTILITY_SHIPS
+
+SHIP_ABBRS = {
+    u'Лёгкий истребитель': u'ЛИ',
+    u'Тяжёлый истребитель': u'ТИ',
+    u'Крейсер': u'КРЕЙ',
+    u'Линкор': u'ЛИНК',
+    u'Линейный крейсер': u'Л.КРЕЙ',
+    u'Бомбардировщик': u'БОМБ',
+    u'Уничтожитель': u'УНИК',
+    u'Звезда смерти': u'ЗС',
+    u'Малый транспорт': u'МТ',
+    u'Большой транспорт': u'БТ',
+    u'Колонизатор': u'КЛНЗ',
+    u'Переработчик': u'ПЕРЕ',
+    u'Шпионский зонд': u'ШП',
+}
+
+
 
 class Planet(object):
     def __init__(self, name, coords, planetid, parser):
@@ -29,7 +73,8 @@ class Planet(object):
         self.coords = coords
         self.planetid = planetid
         self.parser = parser
-        self.resources = {}
+        self.resources = None
+        self.fleet = None
 
     def fetch_resources(self):
         #return open('resources.html').read().decode('utf-8')
@@ -40,6 +85,8 @@ class Planet(object):
         return r.text
 
     def parse_resources(self):
+        if self.resources is not None:
+            return
         html = parse_html(self.fetch_resources())
         resources = {}
         for kind in RESOURCES:
@@ -77,7 +124,43 @@ class Planet(object):
 
     def dump_resources(self):
         for kind in RESOURCES:
-            print kind, self.resources[kind]
+            print '\t', kind, self.resources[kind]
+
+    def fetch_fleet(self):
+        #return open('fleet.html').read().decode('utf-8')
+
+        r = self.parser.session.get(local_config.SERVER + '/game/index.php?page=fleet1&cp=' + str(self.planetid))
+        with open('fleet.html', 'w') as f:
+            f.write(r.text.encode('utf-8'))
+        return r.text
+
+    def parse_fleet(self):
+        if self.fleet is not None:
+            return
+        html = parse_html(self.fetch_fleet())
+        fleet = {}
+        for el in html.cssselect('form#shipsChosen div.buildingimg a'):
+            title = el.cssselect('span.textlabel')[0].text.strip()
+            number = parse_int(el.cssselect('span.textlabel')[0].tail)
+            if number == 0:
+                continue
+            fleet[title] = number
+        self.fleet = fleet
+
+    def dump_fleet(self):
+        for group in [MILITARY_SHIPS, TRANSPORT_SHIPS, UTILITY_SHIPS]:
+            line = []
+            transport_capacity = 0
+            for kind in group:
+                if kind in self.fleet:
+                    n = self.fleet[kind]
+                    abbr = SHIP_ABBRS[kind]
+                    line.append(u'%s: %s' % (kind, n))
+                    transport_capacity += n * TRANSPORT_CAPACITY.get(kind, 0)
+            if transport_capacity > 0:
+                line.append(u'Ёмкость: %d' % transport_capacity)
+            if line:
+                print '\t' + '\t'.join(line)
 
     def __repr__(self):
         return 'Planet(name="%s", coords="%s", planetid="%s")' % (self.name, self.coords, self.planetid)
@@ -123,7 +206,7 @@ class Parser():
 
     def resource_overview(self):
         totals = {kind: {'per_hour': 0, 'current': 0} for kind in RESOURCES}
-        for planet in parser.planets:
+        for planet in self.planets:
             planet.parse_resources()
             print planet
             planet.dump_resources()
@@ -132,10 +215,49 @@ class Parser():
                 totals[kind]['current'] += planet.resources[kind]['current']
         print 'TOTAL:'
         for kind in RESOURCES:
-            print totals[kind]
+            print '\t', totals[kind]
+
+    def fleet_overview(self):
+        totals = {kind: 0 for kind in SHIPS}
+        for planet in self.planets:
+            planet.parse_fleet()
+            print planet
+            planet.dump_fleet()
+            for kind in SHIPS:
+                totals[kind] += planet.fleet.get(kind, 0)
+        print 'TOTAL:'
+        for kind in SHIPS:
+            if totals[kind] > 0:
+                print '\t', kind, totals[kind]
+
+    def resource_and_fleet_overview(self):
+        resource_totals = {kind: {'per_hour': 0, 'current': 0} for kind in RESOURCES}
+        ship_totals = {kind: 0 for kind in SHIPS}
+
+        for planet in self.planets:
+            planet.parse_resources()
+            planet.parse_fleet()
+            print planet
+            planet.dump_resources()
+            for kind in RESOURCES:
+                resource_totals[kind]['per_hour'] += planet.resources[kind]['per_hour']
+                resource_totals[kind]['current'] += planet.resources[kind]['current']
+            planet.dump_fleet()
+            for kind in SHIPS:
+                ship_totals[kind] += planet.fleet.get(kind, 0)
+            print ''
+
+        print 'TOTAL:'
+        for kind in RESOURCES:
+            print '\t', kind, resource_totals[kind]
+        for kind in SHIPS:
+            if ship_totals[kind] > 0:
+                print '\t', kind, ship_totals[kind]
 
 
 if __name__ == '__main__':
     parser = Parser()
     parser.login()
-    parser.resource_overview()
+    #parser.resource_overview()
+    #parser.parse_first_screen()
+    parser.resource_and_fleet_overview()
