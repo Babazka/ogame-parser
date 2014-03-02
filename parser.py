@@ -121,11 +121,21 @@ class Parser():
             planets.append(p)
         self.planets = planets
 
+    def resource_overview(self):
+        totals = {kind: {'per_hour': 0, 'current': 0} for kind in RESOURCES}
+        for planet in parser.planets:
+            planet.parse_resources()
+            print planet
+            planet.dump_resources()
+            for kind in RESOURCES:
+                totals[kind]['per_hour'] += planet.resources[kind]['per_hour']
+                totals[kind]['current'] += planet.resources[kind]['current']
+        print 'TOTAL:'
+        for kind in RESOURCES:
+            print totals[kind]
+
 
 if __name__ == '__main__':
     parser = Parser()
     parser.login()
-    for planet in parser.planets:
-        planet.parse_resources()
-        print planet
-        planet.dump_resources()
+    parser.resource_overview()
