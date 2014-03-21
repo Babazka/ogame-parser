@@ -17,7 +17,11 @@ def parse_html(string):
 
 
 def parse_int(string):
+    if u'М' in string:  # Миллионы
+        return int(float(string.strip()[:-1]) * 1000000)
+
     return int(string.strip().replace('.', ''))
+
 
 def rjust_int(v):
     if isinstance(v, int):
