@@ -167,6 +167,12 @@ class Planet(object):
 
             print_line(kind, line)
 
+    def level_summary_line(self):
+        line = []
+        for kind in RESOURCES + ['energy']:
+            line.append(self.resources[kind]['level'])
+        return line
+
     def fetch_fleet(self):
         #return open('fleet.html').read().decode('utf-8')
 
@@ -275,6 +281,8 @@ class Parser():
         resource_totals = {kind: {'per_hour': 0, 'current': 0} for kind in RESOURCES}
         ship_totals = {kind: 0 for kind in SHIPS}
 
+        level_summary = []
+
         for planet in self.planets:
             planet.parse_resources()
             planet.parse_fleet()
@@ -287,6 +295,20 @@ class Parser():
             for kind in SHIPS:
                 ship_totals[kind] += planet.fleet.get(kind, 0)
             print ''
+            level_summary.append([planet.name] + planet.level_summary_line())
+
+        print 'LEVELS:'
+        print '%20s' % 'planet',
+        for header in RESOURCES + ['energy']:
+            print '%10s' % header,
+        print ''
+        for line in level_summary:
+            print '%20s' % line[0],
+            for item in line[1:]:
+                print '%10s' % item,
+            print ''
+        print ''
+
 
         print 'TOTAL:'
         for kind in RESOURCES:
