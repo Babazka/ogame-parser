@@ -52,6 +52,7 @@ TRANSPORT_SHIPS = [
     u'Малый транспорт',
     u'Большой транспорт',
 ]
+BIG_TRANSPORT = TRANSPORT_SHIPS[-1]
 UTILITY_SHIPS = [
     u'Колонизатор',
     u'Переработчик',
@@ -173,6 +174,13 @@ class Planet(object):
             line.append(self.resources[kind]['level'])
         return line
 
+    def resource_summary_line(self):
+        line = []
+        for kind in RESOURCES:
+            line.append(self.resources[kind]['current'])
+        line.append(self.get_big_transport_capacity())
+        return line
+
     def fetch_fleet(self):
         #return open('fleet.html').read().decode('utf-8')
 
@@ -208,6 +216,10 @@ class Planet(object):
                 line.append(u'Ёмкость: %d' % transport_capacity)
             if line:
                 print '\t' + '\t'.join(line)
+
+    def get_big_transport_capacity(self):
+        capacity = self.fleet.get(BIG_TRANSPORT, 0) * TRANSPORT_CAPACITY.get(BIG_TRANSPORT, 0)
+        return capacity
 
     def __repr__(self):
         return 'Planet(name="%s", coords="%s", planetid="%s")' % (self.name, self.coords, self.planetid)
@@ -281,6 +293,7 @@ class Parser():
         resource_totals = {kind: {'per_hour': 0, 'current': 0} for kind in RESOURCES}
         ship_totals = {kind: 0 for kind in SHIPS}
 
+        res_summary = []
         level_summary = []
 
         for planet in self.planets:
@@ -296,6 +309,19 @@ class Parser():
                 ship_totals[kind] += planet.fleet.get(kind, 0)
             print ''
             level_summary.append([planet.name] + planet.level_summary_line())
+            res_summary.append([planet.name] + planet.resource_summary_line())
+
+        print 'CURRENT RESOURCES:'
+        print '%20s' % 'planet',
+        for header in RESOURCES + ['big_transport_capacity']:
+            print '%10s' % header,
+        print ''
+        for line in res_summary:
+            print '%20s' % line[0],
+            for item in line[1:]:
+                print '%10s' % item,
+            print ''
+        print ''
 
         print 'LEVELS:'
         print '%20s' % 'planet',
